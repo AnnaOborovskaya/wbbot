@@ -1,6 +1,4 @@
 import requests
-import os
-from dotenv import load_dotenv
 from typing import Text
 import requests
 import json
@@ -8,12 +6,26 @@ import datetime,time
 from datetime import timedelta, datetime
 import openpyxl
 
-load_dotenv()
-
 def func_b():
     try:
         api_key='eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjQwODAxdjEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTczODM2MDA0MSwiaWQiOiJhZWY4N2E1MS0wODRkLTRkNjYtOTA0ZS02MjNhOTUzODVmOTciLCJpaWQiOjI0NTE0NTA3LCJvaWQiOjg3OTYzNSwicyI6MTA0LCJzaWQiOiJhZmNhMTg2NC1mOWY4LTQ1MDYtOTM3Yy0wMzZlN2E1YTUwM2EiLCJ0IjpmYWxzZSwidWlkIjoyNDUxNDUwN30.pK0miWktv4dmaMk3nRgET_0HYWqhef2_Y_hMSFl6s379LGGyYlJCVWHhQIfycQXQPHRcSh31kTSrEzhnmryK8A'
-        
+
+
+        id_dict = {}
+        url = 'https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter' 
+        headers = {"Authorization": api_key}
+        r = requests.get(url, headers = headers, params={"limit":1000})
+        for row in r.json()['data']['listGoods']:
+            id_dict[row['nmID']] = row['vendorCode']
+
+
+        id_dict_2 = {}
+        path_new = "Справочник номенклатур.xlsx"
+        wb_new = openpyxl.load_workbook(path_new)  
+        sheet_new = wb_new['Справочник номенклатуры']
+        for row in sheet_new.values:
+            id_dict_2[row[1]] = f'{row[6]}{row[9]}{row[10]}'
+
 
         #*******Списки кампаний**********
         url = 'https://advert-api.wildberries.ru/adv/v1/promotion/count' 
@@ -27,7 +39,7 @@ def func_b():
 
         with open('data.json', 'w') as file:
             json.dump(r.json(), file)
-        num = 2
+        num = 3
         for i in range(len(r.json()['adverts'])):
             data = r.json()['adverts'][i]['advert_list']          
             for row in data:
@@ -45,7 +57,8 @@ def func_b():
                     sheet[f'D{num}'] = r.json()['adverts'][i]['type']
                 num += 1
 
-        wb.save("Общая модель.xlsx")
+        wb.save("Общая модель WB.xlsx")
+
 
 
         #***********Информация о кампаниях******
@@ -62,7 +75,7 @@ def func_b():
         path = "Общая модель.xlsx"
         wb = openpyxl.load_workbook(path)  
         sheet = wb['информация кампании']
-        num = 180
+        num = 1
         counter = 0
         while counter != len(l):
             if len(l) - counter > 50:
@@ -208,8 +221,7 @@ def func_b():
                 except:
                     pass  
                 num += 1  
-        wb.save("Общая модель.xlsx")
-
+        wb.save("Общая модель WB.xlsx")
 
 
         #******Статистика кампаний******
@@ -233,11 +245,11 @@ def func_b():
                     
 
         sheet = wb['статистика кампаний']
-        num = len([row for row in sheet.values if row[0]]) + 1
+        num = 3#len([row for row in sheet.values if row[0]]) + 1
         counter = 0
 
         while counter <= len(l):    
-            if len(l) - counter > 100:
+            if len(l) - counter >= 100:
                 r = requests.post(url, headers = headers, json=l[counter:counter + 100])                        
                 counter += 100
             else:
@@ -266,8 +278,20 @@ def func_b():
                             for row in sheet3.values:
                                 if str(row[6]) == str(id_comp):         
                                     sheet[f'C{num}'] = row[4]
-                                    sheet[f'H{num}'] = row[7]
-                                    sheet[f'I{num}'] = row[8]
+                                    fff = {-1: 'кампания в процессе удаления',                                 
+                                            4: 'готова к запуску',
+                                            7: 'кампания завершена',
+                                            8: 'отказался',
+                                            9: 'идут показы',
+                                            11: 'кампания на паузе'}
+                                    sheet[f'H{num}'] = fff[row[7]]
+                                    fff = {4: 'кампания в каталоге (устаревший тип)',
+                                            5: 'кампания в карточке товара (устаревший тип)',
+                                            6: 'кампания в поиске (устаревший тип)',
+                                            7: 'кампания в рекомендациях на главной странице (устаревший тип)',
+                                            8: 'автоматическая кампания',
+                                            9: 'Аукцион'}
+                                    sheet[f'I{num}'] = fff[row[8]]
                                     sheet[f'J{num}'] = row[10]
                                     sheet[f'K{num}'] = row[13]
                                     sheet[f'L{num}'] = row[14]
@@ -277,8 +301,18 @@ def func_b():
                                     sheet[f'P{num}'] = row[31]
                                     break
 
-                            sheet[f'D{num}'] = row_2['name'] #азвание товара
+                            sheet[f'D{num}'] = row_2['name'] #название товара
                             sheet[f'E{num}'] = row_2['nmId']
+                            try:
+                                sheet[f'F{num}'] = id_dict[row_2['nmId']]
+                                #print(row_2['nmId'], id_dict[row_2['nmId']], id_dict_2[id_dict[row_2['nmId']]])
+                            except:
+                                pass
+                            try:
+                                sheet[f'G{num}'] = id_dict_2[id_dict[row_2['nmId']]]
+                            except:
+                                pass
+
                             sheet[f'R{num}'] = row_2['views']
                             sheet[f'S{num}'] = row_2['clicks']
                             sheet[f'T{num}'] = row_2['ctr']
@@ -293,14 +327,17 @@ def func_b():
                             num += 1
                     except:
                         pass
+
                                 
                 
             except:
                 pass
             time.sleep(60)  
-            wb.save("Общая модель.xlsx")
-                 
+            wb.save("Общая модель WB.xlsx")
+                
 
     except:
         file = open('Ошибки.txt', 'a')
         file.write(f"{datetime.now().strftime('%d.%m.%Y %HS%M:%S')} Ошибка, вероятно нет подключения к интернету\n")
+
+func_b()
